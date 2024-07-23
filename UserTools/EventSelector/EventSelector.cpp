@@ -51,7 +51,6 @@ bool EventSelector::Initialise(std::string configfile, DataModel &data){
   m_variables.Get("CutConfiguration",fCutConfigurationName);
 
   if (!fIsMC){fMCFVCut = false; fMCPMTVolCut = false; fMCMRDCut = false; fMCPiKCut = false; fMCIsMuonCut = false; fMCIsElectronCut = false; fMCIsSingleRingCut = false; fMCIsMultiRingCut = false; fMCProjectedMRDHit = false; fMCEnergyCut = false; fPromptTrigOnly = false;}
-
   /// Construct the other objects we'll be needing at event level,
   
   // Make the RecoEvent Store if it doesn't exist
@@ -750,11 +749,11 @@ bool EventSelector::EventSelectionByPMTMRDCoinc() {
   }
   m_data->Stores["RecoEvent"]->Set("MRDClustersTime",vec_mrdclusters_time, true);
   
-  if (fIsMC){
-    if (MrdTimeClusters.size() == 0 || m_all_clusters_MC->size() == 0) return false;
-  } else {
-    if (MrdTimeClusters.size() == 0 || m_all_clusters->size() == 0) return false;
-  }
+//  if (fIsMC){
+//    if (MrdTimeClusters.size() == 0 || m_all_clusters_MC->size() == 0) return false;
+//  } else {
+//    if (MrdTimeClusters.size() == 0 || m_all_clusters->size() == 0) return false;
+//  }
 
   pmtmrd_coinc_min = fPMTMRDOffset - 50;
   pmtmrd_coinc_max = fPMTMRDOffset + 50;
@@ -768,8 +767,8 @@ bool EventSelector::EventSelectionByPMTMRDCoinc() {
     Log("EventSelector tool: MRD/Tank coincidene candidate "+std::to_string(i_mrd)+ " has time difference: "+std::to_string(time_diff),v_message,verbosity);
     if (verbosity > 1) std::cout <<"max_charge: "<<max_charge<<", n_hits: "<<n_hits<<std::endl;
     Log("EventSelector tool: MRD/Tank coincidene candidate "+std::to_string(i_mrd)+ " has time difference: "+std::to_string(time_diff),1,verbosity);
-    
-    if (time_diff > pmtmrd_coinc_min && time_diff < pmtmrd_coinc_max && max_charge > 200 && n_hits >= 20){
+
+    if (time_diff > pmtmrd_coinc_min && time_diff < pmtmrd_coinc_max){ // && max_charge > 4 && n_hits >= 2){
       coincidence = true;
       vector_mrd_coincidence.push_back(i_mrd);
     }

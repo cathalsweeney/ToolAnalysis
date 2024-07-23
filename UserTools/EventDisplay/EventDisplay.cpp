@@ -596,7 +596,9 @@ bool EventDisplay::Execute(){
     get_ok = m_data->Stores.at("RecoEvent")->Get("EventCutStatus",EventCutStatus);
     if(not get_ok){ Log("EventDisplay Tool: Error retrieving EventCutStatus,true from RecoEvent!",v_error,verbose); return false; }
   }
-
+  else{
+    get_ok = m_data->Stores.at("ANNIEEvent")->Get("EventCutStatus",EventCutStatus);
+  }
   //---------------------------------------------------------------
   //------------- Get Clustered Event information -----------------
   //---------------------------------------------------------------
@@ -664,7 +666,7 @@ bool EventDisplay::Execute(){
     else i_loop = 2;
   }  
   passed_selection_cuts = EventCutStatus;
-  if (selected_event && !passed_selection_cuts) return true;
+  if (selected_event && !passed_selection_cuts)  return true;
   Log("EventDisplay tool: Event number check passed.",v_debug,verbose);
 
   //----------------------------------------------------------------------
@@ -788,7 +790,7 @@ bool EventDisplay::Execute(){
         //check if event happened outside of the tank volume
         if ((truevtx_y< min_y) || (truevtx_y>max_y) || sqrt(truevtx_x*truevtx_x+truevtx_z*truevtx_z)>tank_radius){
           Log("EventDisplay tool: Event vertex outside of Inner Structure! Don't plot projected vertex and ring...",v_message,verbose);
-	  Log("EventDisplay tool: Vtx_x = "+to_string(truevtx_x)+", vtx_y = "+to_string(truevtx_y)+", vtx_z = "+to_string(truevtx_z),v_message,verbose);
+         Log("EventDisplay tool: Vtx_x = "+to_string(truevtx_x)+", vtx_y = "+to_string(truevtx_y)+", vtx_z = "+to_string(truevtx_z),v_message,verbose);
           draw_vertex_temp=false;
           draw_ring_temp=false;
         }
