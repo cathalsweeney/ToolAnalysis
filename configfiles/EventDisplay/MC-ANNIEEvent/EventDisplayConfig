@@ -27,7 +27,7 @@ DetectorConfiguration ANNIEp2v6	#specify the detector configuration used in the 
 IsData 0		#Are we evaluating a data file? (0: MC, 1: data)
 HistogramConfig ./configfiles/EventDisplay/Data-ANNIEEvent/histogram_config_calibration.txt  #Configuration file specifying the range of the histograms
 NPMTCut 0		#Only look at events with > NPMTCut PMTs hit above threshold
-DrawClusterPMT 1		#Draw Clustered PMT hits instead of whole buffer
+DrawClusterPMT 0		#Draw Clustered PMT hits instead of whole buffer
 DrawClusterMRD 1		#Draw Clustered MRD hits instead of whole buffer #foo
 ChargeFormat pe		#Options: pe/nC
 SinglePEGains ./configfiles/EventDisplay/Data-ANNIEEvent/ChannelSPEGains_BeamRun20192020.csv
@@ -35,4 +35,4 @@ RunNumber 0
 RunType 3
 UseFilteredDigits 0  #Use only digits that passed the HitCleaner filtering process
 
-verbose 1
+verbose 100

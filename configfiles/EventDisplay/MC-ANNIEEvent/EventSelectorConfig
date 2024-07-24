@@ -1,7 +1,7 @@
 # EventSelector config file
 
-verbosity 0
-MCPMTVolCut 1 #
+verbosity 10
+MCPMTVolCut 0 #
 MCFVCut 0 #
 MCMRDCut 0 #
 MCPiKCut 0 #
