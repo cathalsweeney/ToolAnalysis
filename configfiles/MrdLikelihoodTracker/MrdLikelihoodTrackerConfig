@@ -1,4 +1,9 @@
 #TimeClustering config file
 
 Verbose 0
-Event 57
+Event   57
+StartX  0.
+StartY  0.
+StartZ  0.
+Theta   10.
+Phi     0.

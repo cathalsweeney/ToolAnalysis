@@ -28,8 +28,8 @@ class MrdLikelihoodTracker: public Tool {
   bool Initialise(std::string configfile,DataModel &data); ///< Initialise Function for setting up Tool resources. @param configfile The path and name of the dynamic configuration file to read in. @param data A reference to the transient data class used to pass information between Tools.
   bool Execute(); ///< Execute function used to perform Tool purpose.
   bool Finalise(); ///< Finalise function used to clean up resources.
-  bool FillCellProbs();
-
+  void FillPaddleProbs(); ///< Fill fPaddleProbs
+  void FillCoordsAtZ(); ///< Fill fCoordsAtZ
 
  private:
 
@@ -44,13 +44,26 @@ class MrdLikelihoodTracker: public Tool {
   int fEventNumber;
   double fStartX;
   double fStartY;
-  double fStartZ;
+//  double fStartZ;
   double fTheta;
   double fPhi;
   
-  Geometry *geom = nullptr;  
+  Geometry *fGeom = nullptr;  
 
-  TH1D* hist = nullptr;
+//  TH1D* hist = nullptr;
+
+  std::vector<double> fZ_midpoints=
+  { 3.3638, 3.4884, 3.613, 3.7376,
+    3.8622, 3.9833, 4.1044, 4.2255,
+    4.3466, 4.4677, 4.5888}; ///< z-coordinates of the midpoints of each plane
+
+  double fZ_start = 3.3608; ///< z-coordinate of the start of the MRD
+
+  std::map<double, std::pair<double,double> > fCoordsAtZ; ///< (x,y) coords of track at z midpoint of each plane given current track params; fCoordsAtZ[z_val] = {x,y} 
+  std::map<int, double> fPaddleProbs; ///< Probability of this paddle being hit given current track params; fPaddleProbs[chankey] = prob
+
+
+  
 };
 
 

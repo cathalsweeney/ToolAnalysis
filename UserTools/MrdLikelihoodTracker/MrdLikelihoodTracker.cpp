@@ -1,6 +1,23 @@
 #include "MrdLikelihoodTracker.h"
 
 
+// Return the (x,y) coordinates of a line at a specified z-value,
+// given the parameters of the line
+std::pair<double, double> CalcCoordsAtZ(double z_val,   double x_start, double y_start,
+                                    double z_start, double theta,   double phi)
+{
+
+  double sin_phi = std::sin(phi*(M_PI/180.) );
+  double cos_phi = std::cos(phi*(M_PI/180.) );
+  double tan_theta = std::tan(theta*(M_PI/180.) );
+  
+  double x_val = x_start + (z_val - z_start)*tan_theta*cos_phi;
+  double y_val = y_start + (z_val - z_start)*tan_theta*sin_phi;
+//  std::cout << "{ " << x_val << ", " << y_val << ", " << z_val << "} \n";
+
+  return {x_val, y_val};
+}
+
 MrdLikelihoodTracker::MrdLikelihoodTracker():Tool(){}
 
 
@@ -45,10 +62,10 @@ bool MrdLikelihoodTracker::Initialise(std::string configfile, DataModel &data)
     Log("MrdLikelihoodTracker tool: Did not find \"StartY\" in config file. Quitting",v_message,fVerbose); 
     return false;
   }
-  if(!m_variables.Get("StartZ",fStartZ)){
-    Log("MrdLikelihoodTracker tool: Did not find \"StartZ\" in config file. Quitting",v_message,fVerbose); 
-    return false;
-  }
+//  if(!m_variables.Get("StartZ",fStartZ)){
+//    Log("MrdLikelihoodTracker tool: Did not find \"StartZ\" in config file. Quitting",v_message,fVerbose); 
+//    return false;
+//  }
 
   
   if(!m_variables.Get("Theta",fTheta)){
@@ -61,7 +78,7 @@ bool MrdLikelihoodTracker::Initialise(std::string configfile, DataModel &data)
   }
 
 
-  hist = new TH1D("hist", "hist", 200, 3., 5.);
+//  hist = new TH1D("hist", "hist", 200, 3., 5.);
   
   
   return true;
@@ -94,75 +111,100 @@ bool MrdLikelihoodTracker::Execute()
 //  if(nClust > 1) return false; // TODO maybe add a log message
 //  else if(nClust == 1) std::cout << "Size of MrdTimeClusters[0] " << MrdTimeClusters[0].size() << "\n";
 
-  FillCellProbs();
-
-  m_data->Stores["ANNIEEvent"]->Header->Get("AnnieGeometry",geom);
-  int n_mrd_pmts = geom->GetNumDetectorsInSet("MRD");
+  m_data->Stores["ANNIEEvent"]->Header->Get("AnnieGeometry",fGeom);
+  int n_mrd_pmts = fGeom->GetNumDetectorsInSet("MRD");
   std::cout << "n_mrd_pmts " << n_mrd_pmts << "\n";
-  std::map<std::string,std::map<unsigned long,Detector*> >* Detectors = geom->GetDetectors();
 
-  for (std::map<unsigned long,Detector*>::iterator it  = Detectors->at("MRD").begin();
+  FillCoordsAtZ();
+  FillPaddleProbs();
+
+  return true;
+}
+
+void MrdLikelihoodTracker::FillCoordsAtZ()
+{
+  fCoordsAtZ.clear(); // TODO might be unecessary?
+  for(double z_mid : fZ_midpoints){
+    fCoordsAtZ[z_mid] = CalcCoordsAtZ(z_mid, fStartX, fStartY, fZ_start, fTheta, fPhi);
+  }
+  
+}
+  
+void MrdLikelihoodTracker::FillPaddleProbs()
+{
+  fPaddleProbs.clear(); // TODO might be unecessary?
+
+
+  std::map<std::string,std::map<unsigned long,Detector*> >* Detectors = fGeom->GetDetectors();
+  for(std::map<unsigned long,Detector*>::iterator it  = Detectors->at("MRD").begin();
                                                     it != Detectors->at("MRD").end();
                                                   ++it){
     Detector* amrdpmt = it->second;
     unsigned long detkey = it->first;
     unsigned long chankey = amrdpmt->GetChannels()->begin()->first;
-    Paddle *mrdpaddle = (Paddle*) geom->GetDetectorPaddle(detkey);
+    Paddle *mrdpaddle = (Paddle*) fGeom->GetDetectorPaddle(detkey);
+
+//    std::cout << "( " << chankey << ", " << detkey << ") \n";
     
     double x_min = mrdpaddle->GetXmin();
     double x_max = mrdpaddle->GetXmax();
+    double x_mid = (x_min + x_max)/ 2.0; // TODO can i just use paddle->origin instead?
+    double x_extent = std::abs(x_max - x_min); // TODO theres prob already a member for this
+         
     double y_min = mrdpaddle->GetYmin();
     double y_max = mrdpaddle->GetYmax();
+    double y_mid = (y_min + y_max)/ 2.0; // TODO can i just use paddle->origin instead?
+    double y_extent = std::abs(y_max - y_min); // TODO theres prob already a member for this
+    
     double z_min = mrdpaddle->GetZmin();
     double z_max = mrdpaddle->GetZmax();
-    int orientation = mrdpaddle->GetOrientation();    //0 is horizontal, 1 is vertical
-    int half = mrdpaddle->GetHalf();                  //0 or 1
-    int side = mrdpaddle->GetSide();
-
     double z_mid = (z_min + z_max)/2.0;
-    std::cout << z_mid << "\n";
-    hist->Fill(z_mid);
-  }  
+
+    std::pair<double, double> coords = fCoordsAtZ[z_mid];
+
+    //TODO bad name
+    double chi2_x = (coords.first - x_mid)*(coords.first - x_mid) / (x_extent * x_extent);
+    double chi2_y = (coords.second - y_mid)*(coords.first - y_mid) / (y_extent * y_extent);
+
+
+    double prob = ( 1./(2*M_PI*x_extent*y_extent) ) * exp(-chi2_x/2. - chi2_y/2.);
+    fPaddleProbs[chankey] = prob;
+//    std::cout << chankey << ", " << prob << "\n";
+    
+    
+//    int orientation = mrdpaddle->GetOrientation();    //0 is horizontal, 1 is vertical
+//    int half = mrdpaddle->GetHalf();                  //0 or 1
+//    int side = mrdpaddle->GetSide();
+
+
+//    std::cout << "( " << z_min << ", " << z_max << ") \n";
+//    std::cout << z_mid << "\n";
+//    hist->Fill(z_mid);
+//    if(std::find(fZ_midpoints.begin(), fZ_midpoints.end(), z_mid) == fZ_midpoints.end()){
+//      fZ_midpoints.push_back(z_mid);
+//    }
+
+  }// end loop over MRD paddles
   
-  return true;
-}
 
-bool MrdLikelihoodTracker::FillCellProbs()
-{
-//  double x_0 = 2.;
-//  double y_0 = 3.5;
-//  double z_0 = 0.;
-//  
-//  double theta = 10.;
-//  double phi = 45.;
-
-
-  std::vector<double> vCellCenters_z = {0., 2., 4., 6.};
-
-  double sin_phi = std::sin(fPhi*(M_PI/180.) );
-  double cos_phi = std::cos(fPhi*(M_PI/180.) );
-  double tan_theta = std::tan(fTheta*(M_PI/180.) );
   
-  for(double z_val : vCellCenters_z){
-    double x_val = fStartX + (z_val - fStartZ)*tan_theta*cos_phi;
-    double y_val = fStartY + (z_val - fStartZ)*tan_theta*sin_phi;
-    std::cout << "{ " << x_val << ", " << y_val << ", " << z_val << "} \n";
-  }
-  return true;
 }
 
 
 bool MrdLikelihoodTracker::Finalise()
 {
-  TCanvas* c = new TCanvas();
-  hist->Draw("hist");
-  c->SaveAs("foo.png");
+  std::cout << "Midpoints \n";
+  for(double m : fZ_midpoints) std::cout << m << "\n";
 
-  delete hist;
-  hist = nullptr;
-
-  delete c;
-  c = nullptr;
+//  TCanvas* c = new TCanvas();
+//  hist->Draw("hist");
+//  c->SaveAs("foo.png");
+//
+//  delete hist;
+//  hist = nullptr;
+//
+//  delete c;
+//  c = nullptr;
   
   return true;
 }
