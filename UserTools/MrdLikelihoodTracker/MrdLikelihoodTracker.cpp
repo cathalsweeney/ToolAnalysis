@@ -102,15 +102,39 @@ bool MrdLikelihoodTracker::Execute()
   if(this_event != 57) return true; 
   std::cout << "this_event is " << this_event << "\n";
   
-//  std::vector<std::vector<int>> MrdTimeClusters;
-//  get_ok = m_data->CStore.Get("MrdTimeClusters",MrdTimeClusters);
-//  if (not get_ok) { Log("MrdLikelihoodTracker Tool: Error retrieving MrdTimeClusters map from CStore, did you run TimeClustering beforehand?",v_error,fVerbose); return false; }
-//
-//  int nClust = MrdTimeClusters.size();
-//  std::cout << "Number of MrdTimeClusters " << nClust << "\n";
-//  if(nClust > 1) return false; // TODO maybe add a log message
-//  else if(nClust == 1) std::cout << "Size of MrdTimeClusters[0] " << MrdTimeClusters[0].size() << "\n";
+  std::vector<std::vector<int>> MrdTimeClusters;
+  get_ok = m_data->CStore.Get("MrdTimeClusters",MrdTimeClusters);
+  if (not get_ok) { Log("MrdLikelihoodTracker Tool: Error retrieving MrdTimeClusters map from CStore, did you run TimeClustering beforehand?",v_error,fVerbose); return false; }
 
+  int nClust = MrdTimeClusters.size();
+  std::cout << "Number of MrdTimeClusters " << nClust << "\n";
+  if(nClust != 1) return false; // TODO maybe add a log message
+  std::cout << "Size of MrdTimeClusters[0] " << MrdTimeClusters[0].size() << "\n";
+
+
+  //get_ok = m_data->CStore.Get("MrdDigitTimes",MrdDigitTimes);
+//  if (not get_ok) { Log("EventDisplay Tool: Error retrieving MrdDigitTimes map from CStore, did you run TimeClustering beforehand?",v_error,verbose); return false; }
+  get_ok = m_data->CStore.Get("MrdDigitChankeys",mrddigitchankeysthisevent);
+  if (not get_ok) { Log("EventDisplay Tool: Error retrieving MrdDigitChankeys, did you run TimeClustering beforehand",v_error,fVerbose); return false;}
+
+  std::vector<int> hitmrd_detkeys;
+
+  for(int chankey : mrddigitchankeysthisevent){
+    std::cout << "FOO " << chankey << "\n";
+  }
+  
+  for(int digit_value : MrdTimeClusters[0]){
+    std::cout << digit_value << "\n";
+    unsigned long chankey = mrddigitchankeysthisevent.at(digit_value);
+    Detector *thedetector = fGeom->ChannelToDetector(chankey);
+    unsigned long detkey = thedetector->GetDetectorID();
+    if (thedetector->GetDetectorElement()!="MRD") continue;
+//    double mrdtimes=MrdDigitTimes.at(digit_value);
+    hitmrd_detkeys.push_back(detkey);    
+    std::cout << chankey << ", " << detkey << "\n";
+  }
+
+  
   m_data->Stores["ANNIEEvent"]->Header->Get("AnnieGeometry",fGeom);
   int n_mrd_pmts = fGeom->GetNumDetectorsInSet("MRD");
   std::cout << "n_mrd_pmts " << n_mrd_pmts << "\n";
@@ -118,6 +142,8 @@ bool MrdLikelihoodTracker::Execute()
   FillCoordsAtZ();
   FillPaddleProbs();
 
+
+  
   return true;
 }
 
@@ -133,7 +159,6 @@ void MrdLikelihoodTracker::FillCoordsAtZ()
 void MrdLikelihoodTracker::FillPaddleProbs()
 {
   fPaddleProbs.clear(); // TODO might be unecessary?
-
 
   std::map<std::string,std::map<unsigned long,Detector*> >* Detectors = fGeom->GetDetectors();
   for(std::map<unsigned long,Detector*>::iterator it  = Detectors->at("MRD").begin();
@@ -193,8 +218,9 @@ void MrdLikelihoodTracker::FillPaddleProbs()
 
 bool MrdLikelihoodTracker::Finalise()
 {
-  std::cout << "Midpoints \n";
-  for(double m : fZ_midpoints) std::cout << m << "\n";
+
+//  std::cout << "Midpoints \n";
+//  for(double m : fZ_midpoints) std::cout << m << "\n";
 
 //  TCanvas* c = new TCanvas();
 //  hist->Draw("hist");

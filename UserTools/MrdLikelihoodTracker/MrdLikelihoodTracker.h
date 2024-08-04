@@ -62,7 +62,7 @@ class MrdLikelihoodTracker: public Tool {
   std::map<double, std::pair<double,double> > fCoordsAtZ; ///< (x,y) coords of track at z midpoint of each plane given current track params; fCoordsAtZ[z_val] = {x,y} 
   std::map<int, double> fPaddleProbs; ///< Probability of this paddle being hit given current track params; fPaddleProbs[chankey] = prob
 
-
+  std::vector<unsigned long> mrddigitchankeysthisevent;  //from TimeClustering tool
   
 };
 
