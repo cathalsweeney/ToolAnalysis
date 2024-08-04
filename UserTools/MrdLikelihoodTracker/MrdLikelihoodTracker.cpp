@@ -77,9 +77,20 @@ bool MrdLikelihoodTracker::Initialise(std::string configfile, DataModel &data)
     return false;
   }
 
-
 //  hist = new TH1D("hist", "hist", 200, 3., 5.);
-  
+  h2 = new TH2D("hist", "hist", nBinsX,0.,60., nBinsY,0.,359.);
+
+  m_data->Stores["ANNIEEvent"]->Header->Get("AnnieGeometry",fGeom);
+  int n_mrd_pmts = fGeom->GetNumDetectorsInSet("MRD");
+
+  std::map<std::string,std::map<unsigned long,Detector*> >* Detectors = fGeom->GetDetectors();
+  for(std::map<unsigned long,Detector*>::iterator it  = Detectors->at("MRD").begin();
+      it != Detectors->at("MRD").end();
+      ++it){
+    unsigned long detkey = it->first; // I'm pretty sure detkey == chankey
+    fAllMrdChankeys.push_back(detkey);
+  }
+//  delete Detectors;
   
   return true;
 }
@@ -117,32 +128,62 @@ bool MrdLikelihoodTracker::Execute()
   get_ok = m_data->CStore.Get("MrdDigitChankeys",mrddigitchankeysthisevent);
   if (not get_ok) { Log("EventDisplay Tool: Error retrieving MrdDigitChankeys, did you run TimeClustering beforehand",v_error,fVerbose); return false;}
 
-  std::vector<int> hitmrd_detkeys;
-
-  for(int chankey : mrddigitchankeysthisevent){
-    std::cout << "FOO " << chankey << "\n";
-  }
+  std::vector<int> hitmrd_chankeys;
   
   for(int digit_value : MrdTimeClusters[0]){
-    std::cout << digit_value << "\n";
+//    std::cout << digit_value << "\n";
     unsigned long chankey = mrddigitchankeysthisevent.at(digit_value);
-    Detector *thedetector = fGeom->ChannelToDetector(chankey);
-    unsigned long detkey = thedetector->GetDetectorID();
-    if (thedetector->GetDetectorElement()!="MRD") continue;
+//    Detector *thedetector = fGeom->ChannelToDetector(chankey);
+//    unsigned long detkey = thedetector->GetDetectorID();
+//    if (thedetector->GetDetectorElement()!="MRD") continue;
 //    double mrdtimes=MrdDigitTimes.at(digit_value);
-    hitmrd_detkeys.push_back(detkey);    
-    std::cout << chankey << ", " << detkey << "\n";
+    hitmrd_chankeys.push_back(chankey);    
+//    std::cout << chankey << "\n";
   }
 
-  
-  m_data->Stores["ANNIEEvent"]->Header->Get("AnnieGeometry",fGeom);
-  int n_mrd_pmts = fGeom->GetNumDetectorsInSet("MRD");
-  std::cout << "n_mrd_pmts " << n_mrd_pmts << "\n";
 
-  FillCoordsAtZ();
-  FillPaddleProbs();
+  for(int iBinX=1; iBinX<=nBinsX; iBinX++){
+    double binX = h2->GetXaxis()->GetBinCenter(iBinX);
+    fTheta = binX;
+    for(int iBinY=1; iBinY<=nBinsY; iBinY++){
+      double binY = h2->GetYaxis()->GetBinCenter(iBinY);
+      fPhi = binY;
 
+      //~~~~~~~~~~~~~~~~~~~~~~~~~
+      FillCoordsAtZ();
+      FillPaddleProbs();
+      
+      double prob = 1.;
+//      std::map<std::string,std::map<unsigned long,Detector*> >* Detectors = fGeom->GetDetectors();
+//      for(std::map<unsigned long,Detector*>::iterator it  = Detectors->at("MRD").begin();
+//          it != Detectors->at("MRD").end();
+//          ++it){
+//        unsigned long detkey = it->first; // I'm pretty sure detkey == chankey
+//        int chankey = detkey; // redundant, but makes code more readable
+      for(int chankey : fAllMrdChankeys){
 
+        bool isHit = false;
+        double val = 1.;
+        if(std::find(hitmrd_chankeys.begin(), hitmrd_chankeys.end(), chankey) != hitmrd_chankeys.end()){
+          val = fPaddleProbs.at(chankey); 
+          isHit = true;
+        }
+        else{
+          val = ( 1.- fPaddleProbs.at(chankey) );
+        }    
+          prob *= val;
+
+//          std::cout << val << "\n";
+//          if(val == 1. || val < 0.){
+//            std::cout << isHit << " : " << fPaddleProbs.at(chankey) << "\n";
+//          }
+
+      }// end loop over all MRD channels
+//      std::cout << "prob is " << prob << "\n";
+      //~~~~~~~~~~~~~~~~~~~~~~~~~
+      h2->SetBinContent(iBinX, iBinY, prob);
+    }//end loop over y-bins
+  }//end loop over x-bins
   
   return true;
 }
@@ -160,16 +201,20 @@ void MrdLikelihoodTracker::FillPaddleProbs()
 {
   fPaddleProbs.clear(); // TODO might be unecessary?
 
-  std::map<std::string,std::map<unsigned long,Detector*> >* Detectors = fGeom->GetDetectors();
-  for(std::map<unsigned long,Detector*>::iterator it  = Detectors->at("MRD").begin();
-                                                    it != Detectors->at("MRD").end();
-                                                  ++it){
-    Detector* amrdpmt = it->second;
-    unsigned long detkey = it->first;
-    unsigned long chankey = amrdpmt->GetChannels()->begin()->first;
-    Paddle *mrdpaddle = (Paddle*) fGeom->GetDetectorPaddle(detkey);
 
-//    std::cout << "( " << chankey << ", " << detkey << ") \n";
+//  std::map<std::string,std::map<unsigned long,Detector*> >* Detectors = fGeom->GetDetectors();
+//  for(std::map<unsigned long,Detector*>::iterator it  = Detectors->at("MRD").begin();
+//                                                    it != Detectors->at("MRD").end();
+//                                                  ++it){
+//  Detector* amrdpmt = it->second;
+//    unsigned long detkey = it->first;
+//    unsigned long chankey = amrdpmt->GetChannels()->begin()->first;
+  
+  for(int chankey : fAllMrdChankeys){
+
+    Paddle *mrdpaddle = (Paddle*) fGeom->GetDetectorPaddle(chankey);
+
+//    if(chankey != detkey) std::cout << "HELLO ( " << chankey << ", " << detkey << ") \n";
     
     double x_min = mrdpaddle->GetXmin();
     double x_max = mrdpaddle->GetXmax();
@@ -189,10 +234,17 @@ void MrdLikelihoodTracker::FillPaddleProbs()
 
     //TODO bad name
     double chi2_x = (coords.first - x_mid)*(coords.first - x_mid) / (x_extent * x_extent);
-    double chi2_y = (coords.second - y_mid)*(coords.first - y_mid) / (y_extent * y_extent);
+    double chi2_y = (coords.second - y_mid)*(coords.second - y_mid) / (y_extent * y_extent);
 
 
     double prob = ( 1./(2*M_PI*x_extent*y_extent) ) * exp(-chi2_x/2. - chi2_y/2.);
+    if(prob > 1.){
+      std::cout << "~~~~ \n";
+      std::cout << prob << "\n";
+      std::cout << chi2_x << " : (" << coords.first << " - " << x_mid << ") / " << x_extent << "\n";
+      std::cout << chi2_y << " : (" << coords.second << " - " << y_mid << ") / " << y_extent << "\n"; 
+    }
+    
     fPaddleProbs[chankey] = prob;
 //    std::cout << chankey << ", " << prob << "\n";
     
@@ -222,15 +274,20 @@ bool MrdLikelihoodTracker::Finalise()
 //  std::cout << "Midpoints \n";
 //  for(double m : fZ_midpoints) std::cout << m << "\n";
 
-//  TCanvas* c = new TCanvas();
-//  hist->Draw("hist");
-//  c->SaveAs("foo.png");
-//
-//  delete hist;
-//  hist = nullptr;
-//
-//  delete c;
-//  c = nullptr;
+  TCanvas* c = new TCanvas();
+  c->SetLogz(true);
+  c->SetRightMargin(0.13);
+  
+  h2->SetStats(0);
+  h2->GetZaxis()->SetRangeUser(1e-25, 1e-22);
+  h2->Draw("colz");
+  c->SaveAs("bar.png");
+
+  delete h2;
+  h2 = nullptr;
+
+  delete c;
+  c = nullptr;
   
   return true;
 }

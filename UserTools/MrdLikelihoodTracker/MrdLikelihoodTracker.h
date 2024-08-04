@@ -9,6 +9,7 @@
 
 #include "TCanvas.h"
 #include "TH1.h"
+#include "TH2.h"
 
 /**
  * \class MrdLikelihoodTracker
@@ -63,6 +64,11 @@ class MrdLikelihoodTracker: public Tool {
   std::map<int, double> fPaddleProbs; ///< Probability of this paddle being hit given current track params; fPaddleProbs[chankey] = prob
 
   std::vector<unsigned long> mrddigitchankeysthisevent;  //from TimeClustering tool
+  TH2D* h2;
+  int nBinsX = 100;
+  int nBinsY = 100;
+
+  std::vector<int> fAllMrdChankeys;
   
 };
 
