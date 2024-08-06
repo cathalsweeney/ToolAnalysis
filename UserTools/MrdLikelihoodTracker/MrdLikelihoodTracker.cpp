@@ -1,6 +1,6 @@
 #include "MrdLikelihoodTracker.h"
 
-
+//..................................................................................
 // Return the (x,y) coordinates of a line at a specified z-value,
 // given the parameters of the line
 std::pair<double, double> CalcCoordsAtZ(double z_val,   double x_start, double y_start,
@@ -18,12 +18,14 @@ std::pair<double, double> CalcCoordsAtZ(double z_val,   double x_start, double y
   return {x_val, y_val};
 }
 
+//..................................................................................
+
 MrdLikelihoodTracker::MrdLikelihoodTracker():Tool(){}
 
+//..................................................................................
 
 bool MrdLikelihoodTracker::Initialise(std::string configfile, DataModel &data)
 {
-
   /////////////////// Useful header ///////////////////////
   if(configfile!="") m_variables.Initialise(configfile); // loading config file
   //m_variables.Print();
@@ -52,7 +54,6 @@ bool MrdLikelihoodTracker::Initialise(std::string configfile, DataModel &data)
       return false;
     }
   }
-
 
   if(!m_variables.Get("StartX",fStartX)){
     Log("MrdLikelihoodTracker tool: Did not find \"StartX\" in config file. Quitting",v_message,fVerbose); 
@@ -91,10 +92,11 @@ bool MrdLikelihoodTracker::Initialise(std::string configfile, DataModel &data)
     fAllMrdChankeys.push_back(detkey);
   }
 //  delete Detectors;
-  
+    
   return true;
 }
 
+//..................................................................................
 
 bool MrdLikelihoodTracker::Execute()
 {
@@ -127,8 +129,6 @@ bool MrdLikelihoodTracker::Execute()
 //  if (not get_ok) { Log("EventDisplay Tool: Error retrieving MrdDigitTimes map from CStore, did you run TimeClustering beforehand?",v_error,verbose); return false; }
   get_ok = m_data->CStore.Get("MrdDigitChankeys",mrddigitchankeysthisevent);
   if (not get_ok) { Log("EventDisplay Tool: Error retrieving MrdDigitChankeys, did you run TimeClustering beforehand",v_error,fVerbose); return false;}
-
-  std::vector<int> hitmrd_chankeys;
   
   for(int digit_value : MrdTimeClusters[0]){
 //    std::cout << digit_value << "\n";
@@ -137,56 +137,143 @@ bool MrdLikelihoodTracker::Execute()
 //    unsigned long detkey = thedetector->GetDetectorID();
 //    if (thedetector->GetDetectorElement()!="MRD") continue;
 //    double mrdtimes=MrdDigitTimes.at(digit_value);
-    hitmrd_chankeys.push_back(chankey);    
+    fHitMrdChankeys.push_back(chankey);    
 //    std::cout << chankey << "\n";
   }
 
 
-  for(int iBinX=1; iBinX<=nBinsX; iBinX++){
-    double binX = h2->GetXaxis()->GetBinCenter(iBinX);
-    fTheta = binX;
-    for(int iBinY=1; iBinY<=nBinsY; iBinY++){
-      double binY = h2->GetYaxis()->GetBinCenter(iBinY);
-      fPhi = binY;
+  fMinimizer = std::unique_ptr<ROOT::Math::Minimizer>
+    ( ROOT::Math::Factory::CreateMinimizer( "Minuit2", "Migrad" ) );
+  
+  fMinimizer->SetMaxFunctionCalls(10000);
+  fMinimizer->SetMaxIterations(10000);
+  fMinimizer->SetTolerance( 0.1 );
+  fMinimizer->SetPrintLevel(1);
 
-      //~~~~~~~~~~~~~~~~~~~~~~~~~
-      FillCoordsAtZ();
-      FillPaddleProbs();
-      
-      double prob = 1.;
-//      std::map<std::string,std::map<unsigned long,Detector*> >* Detectors = fGeom->GetDetectors();
-//      for(std::map<unsigned long,Detector*>::iterator it  = Detectors->at("MRD").begin();
-//          it != Detectors->at("MRD").end();
-//          ++it){
-//        unsigned long detkey = it->first; // I'm pretty sure detkey == chankey
-//        int chankey = detkey; // redundant, but makes code more readable
-      for(int chankey : fAllMrdChankeys){
+  fMinimizer->SetVariable( 0, "start_x", 0., 0.005);
+  fMinimizer->SetVariableLimits( 0, -2., 2.); // TODO refine these limits
 
-        bool isHit = false;
-        double val = 1.;
-        if(std::find(hitmrd_chankeys.begin(), hitmrd_chankeys.end(), chankey) != hitmrd_chankeys.end()){
-          val = fPaddleProbs.at(chankey); 
-          isHit = true;
-        }
-        else{
-          val = ( 1.- fPaddleProbs.at(chankey) );
-        }    
-          prob *= val;
+  fMinimizer->SetVariable( 1, "start_y", 0., 0.005);
+  fMinimizer->SetVariableLimits( 1, -2., 2.); // TODO refine these limits
 
-//          std::cout << val << "\n";
-//          if(val == 1. || val < 0.){
-//            std::cout << isHit << " : " << fPaddleProbs.at(chankey) << "\n";
-//          }
+  fMinimizer->SetVariable( 2, "theta", 10., 0.1);
+  fMinimizer->SetVariableLimits( 2, 0.1, 89.9); 
 
-      }// end loop over all MRD channels
-//      std::cout << "prob is " << prob << "\n";
-      //~~~~~~~~~~~~~~~~~~~~~~~~~
-      h2->SetBinContent(iBinX, iBinY, prob);
-    }//end loop over y-bins
-  }//end loop over x-bins
+  fMinimizer->SetVariable( 3, "phi", 10., 0.5);
+  fMinimizer->SetVariableLimits( 3, -360., 720.); 
+  
+  DoFit();
+
+  fMinimizer->Clear();
+
+  
+//  for(int iBinX=1; iBinX<=nBinsX; iBinX++){
+//    double binX = h2->GetXaxis()->GetBinCenter(iBinX);
+//    fTheta = binX;
+//    for(int iBinY=1; iBinY<=nBinsY; iBinY++){
+//      double binY = h2->GetYaxis()->GetBinCenter(iBinY);
+//      fPhi = binY;
+//
+//      //~~~~~~~~~~~~~~~~~~~~~~~~~
+//      FillCoordsAtZ();
+//      FillPaddleProbs();
+//      
+//      double prob = 1.;
+////      std::map<std::string,std::map<unsigned long,Detector*> >* Detectors = fGeom->GetDetectors();
+////      for(std::map<unsigned long,Detector*>::iterator it  = Detectors->at("MRD").begin();
+////          it != Detectors->at("MRD").end();
+////          ++it){
+////        unsigned long detkey = it->first; // I'm pretty sure detkey == chankey
+////        int chankey = detkey; // redundant, but makes code more readable
+//      for(int chankey : fAllMrdChankeys){
+//
+//        bool isHit = false;
+//        double val = 1.;
+//        if(std::find(fHitMrdChankeys.begin(), fHitMrdChankeys.end(), chankey) != fHitMrdChankeys.end()){
+//          val = fPaddleProbs.at(chankey); 
+//          isHit = true;
+//        }
+//        else{
+//          val = ( 1.- fPaddleProbs.at(chankey) );
+//        }    
+//          prob *= val;
+//
+////          std::cout << val << "\n";
+////          if(val == 1. || val < 0.){
+////            std::cout << isHit << " : " << fPaddleProbs.at(chankey) << "\n";
+////          }
+//
+//      }// end loop over all MRD channels
+////      std::cout << "prob is " << prob << "\n";
+//      //~~~~~~~~~~~~~~~~~~~~~~~~~
+//      h2->SetBinContent(iBinX, iBinY, prob);
+//    }//end loop over y-bins
+//  }//end loop over x-bins
+
+
   
   return true;
 }
+
+//..................................................................................
+
+void MrdLikelihoodTracker::DefineFunc()
+{
+  fFunc = ROOT::Math::Functor(
+    [&](double const *pars) {
+      double ret = -1. * Likelihood(pars); // negative so we can _minimize_ 
+      return ret;
+    },
+    fNPars);
+}
+
+//..................................................................................
+
+double MrdLikelihoodTracker::Likelihood(const double *parVals)
+{  
+  fStartX = parVals[0];
+  fStartY = parVals[1];
+  fTheta = parVals[2];
+  fPhi = parVals[3];
+  
+  FillCoordsAtZ();
+  FillPaddleProbs();
+      
+  double prob = 1.;
+  for(int chankey : fAllMrdChankeys){
+    
+    bool isHit = false;
+    double val = 1.;
+    if(std::find(fHitMrdChankeys.begin(), fHitMrdChankeys.end(), chankey) != fHitMrdChankeys.end()){
+      val = fPaddleProbs.at(chankey); 
+      isHit = true;
+    }
+    else{
+      val = ( 1.- fPaddleProbs.at(chankey) );
+    }    
+    prob *= val;    
+  }// end loop over all MRD channels  
+
+  return prob;
+}
+
+//..................................................................................
+
+void MrdLikelihoodTracker::DoFit()
+{  
+  DefineFunc();
+  fMinimizer->SetFunction(fFunc);
+  
+  fFitStatus = fMinimizer->Minimize();
+  std::cout << "FitStatus: " << fFitStatus << "\n";  
+  if(fFitStatus){
+    for(int i=0; i<fNPars; i++){
+      fFitVals[i] = fMinimizer->X()[i];
+    }// end for(fNPars)
+  }// end if(fFitStatus)
+}
+
+//..................................................................................
 
 void MrdLikelihoodTracker::FillCoordsAtZ()
 {
@@ -196,7 +283,9 @@ void MrdLikelihoodTracker::FillCoordsAtZ()
   }
   
 }
-  
+
+//..................................................................................
+
 void MrdLikelihoodTracker::FillPaddleProbs()
 {
   fPaddleProbs.clear(); // TODO might be unecessary?
@@ -263,10 +352,9 @@ void MrdLikelihoodTracker::FillPaddleProbs()
 
   }// end loop over MRD paddles
   
-
-  
 }
 
+//..................................................................................
 
 bool MrdLikelihoodTracker::Finalise()
 {
@@ -291,3 +379,5 @@ bool MrdLikelihoodTracker::Finalise()
   
   return true;
 }
+
+//..................................................................................

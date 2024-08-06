@@ -11,6 +11,11 @@
 #include "TH1.h"
 #include "TH2.h"
 
+#include "Math/Minimizer.h"
+#include "Math/Factory.h"
+#include "Math/Functor.h"
+
+
 /**
  * \class MrdLikelihoodTracker
  *
@@ -29,11 +34,23 @@ class MrdLikelihoodTracker: public Tool {
   bool Initialise(std::string configfile,DataModel &data); ///< Initialise Function for setting up Tool resources. @param configfile The path and name of the dynamic configuration file to read in. @param data A reference to the transient data class used to pass information between Tools.
   bool Execute(); ///< Execute function used to perform Tool purpose.
   bool Finalise(); ///< Finalise function used to clean up resources.
-  void FillPaddleProbs(); ///< Fill fPaddleProbs
-  void FillCoordsAtZ(); ///< Fill fCoordsAtZ
-
+  
+  
  private:
 
+  void FillPaddleProbs(); ///< Fill fPaddleProbs
+  void FillCoordsAtZ(); ///< Fill fCoordsAtZ
+  void DoFit();
+  void DefineFunc();
+  double Likelihood(const double *parVals);
+
+  static constexpr int fNPars = 4;
+  std::unique_ptr<ROOT::Math::Minimizer> fMinimizer = NULL;
+  ROOT::Math::Functor fFunc;
+
+  int fFitStatus = 0;
+  double fFitVals[fNPars];
+  
     /// \brief verbosity levels: if 'verbosity' < this level, the message type will be logged.
   int fVerbose;
   int v_error=0;
@@ -48,6 +65,8 @@ class MrdLikelihoodTracker: public Tool {
 //  double fStartZ;
   double fTheta;
   double fPhi;
+
+  std::vector<int> fHitMrdChankeys;
   
   Geometry *fGeom = nullptr;  
 
