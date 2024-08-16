@@ -2,8 +2,8 @@
 
 Verbose 0
 Event   57
-StartX  0.
-StartY  0.
+StartX  -0.010
+StartY  -0.010
 StartZ  0.
-Theta   10.
-Phi     0.
+Theta   40.
+Phi     80.

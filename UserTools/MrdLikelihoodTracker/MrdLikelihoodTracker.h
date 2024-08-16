@@ -14,6 +14,8 @@
 #include "Math/Minimizer.h"
 #include "Math/Factory.h"
 #include "Math/Functor.h"
+//#include "Minuit2/Minuit2Minimizer.h"
+//#include "TMinuitMinimizer.h"
 
 
 /**
@@ -45,7 +47,12 @@ class MrdLikelihoodTracker: public Tool {
   double Likelihood(const double *parVals);
 
   static constexpr int fNPars = 4;
-  std::unique_ptr<ROOT::Math::Minimizer> fMinimizer = NULL;
+//  std::unique_ptr<ROOT::Math::Minimizer> fMinimizer = NULL;
+  ROOT::Math::Minimizer* fMinimizer = NULL;
+//  ROOT::Minuit2::Minuit2Minimizer*  fMinimizer = NULL;
+//    ROOT::Minuit::MinuitMinimizer*  fMinimizer = NULL;
+//  ROOT::Minuit::TMinuitMinimizer*  fMinimizer = NULL;
+
   ROOT::Math::Functor fFunc;
 
   int fFitStatus = 0;
@@ -83,7 +90,8 @@ class MrdLikelihoodTracker: public Tool {
   std::map<int, double> fPaddleProbs; ///< Probability of this paddle being hit given current track params; fPaddleProbs[chankey] = prob
 
   std::vector<unsigned long> mrddigitchankeysthisevent;  //from TimeClustering tool
-  TH2D* h2;
+  TH2D* h2_angle;
+  TH2D* h2_space;
   int nBinsX = 100;
   int nBinsY = 100;
 
