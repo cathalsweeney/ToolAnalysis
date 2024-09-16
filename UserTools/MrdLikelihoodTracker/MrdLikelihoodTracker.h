@@ -34,7 +34,7 @@ class MrdLikelihoodTracker: public Tool {
 
   MrdLikelihoodTracker(); ///< Simple constructor
   bool Initialise(std::string configfile,DataModel &data); ///< Initialise Function for setting up Tool resources. @param configfile The path and name of the dynamic configuration file to read in. @param data A reference to the transient data class used to pass information between Tools.
-  bool Execute(); ///< Execute function used to perform Tool purpose.
+  bool Execute(); ///< Execute function used to perform Tool purpose. 
   bool Finalise(); ///< Finalise function used to clean up resources.
   
   
@@ -45,7 +45,8 @@ class MrdLikelihoodTracker: public Tool {
   void DoFit();
   void DefineFunc();
   double Likelihood(const double *parVals);
-
+  void DrawIt(); ///< Draw the likelihood surfaces
+  
   static constexpr int fNPars = 4;
 //  std::unique_ptr<ROOT::Math::Minimizer> fMinimizer = NULL;
   ROOT::Math::Minimizer* fMinimizer = NULL;
@@ -56,7 +57,8 @@ class MrdLikelihoodTracker: public Tool {
   ROOT::Math::Functor fFunc;
 
   int fFitStatus = 0;
-  double fFitVals[fNPars];
+//  double fFitVals[fNPars];
+  std::vector<double> fFitVals;
   
     /// \brief verbosity levels: if 'verbosity' < this level, the message type will be logged.
   int fVerbose;
@@ -67,18 +69,24 @@ class MrdLikelihoodTracker: public Tool {
 
   
   int fEventNumber;
-  double fStartX;
-  double fStartY;
-//  double fStartZ;
-  double fTheta;
-  double fPhi;
+//  double fStartX_default;
+//  double fStartY_default;
+//  double fTheta_default;
+//  double fPhi_default;
 
+  double fStartX = 0.;
+  double fStartY = 0.;
+  double fTheta = 0.;
+  double fPhi = 0.;
+
+  
   std::vector<int> fHitMrdChankeys;
   
   Geometry *fGeom = nullptr;  
 
 //  TH1D* hist = nullptr;
 
+  // TODO these values should not be hardcoded!!
   std::vector<double> fZ_midpoints=
   { 3.3638, 3.4884, 3.613, 3.7376,
     3.8622, 3.9833, 4.1044, 4.2255,

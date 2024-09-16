@@ -44,45 +44,33 @@ bool MrdLikelihoodTracker::Initialise(std::string configfile, DataModel &data)
   }
 
   
-  if(!m_variables.Get("Event",fEventNumber)){
-    Log("MrdLikelihoodTracker tool: Did not find \"Event\" in config file. Using default value of 1",v_message,fVerbose); 
-    fEventNumber = 1;
-  }
-  else{
-    std::cout << "Hi " << fEventNumber << "\n";
-    if(fEventNumber < 0){
-      Log("MrdLikelihoodTracker tool: \"Event\" cannot be < 1. Quitting",v_error,fVerbose);
-      return false;
-    }
-  }
-
-  if(!m_variables.Get("StartX",fStartX)){
-    Log("MrdLikelihoodTracker tool: Did not find \"StartX\" in config file. Quitting",v_message,fVerbose); 
-    return false;
-  }
-  if(!m_variables.Get("StartY",fStartY)){
-    Log("MrdLikelihoodTracker tool: Did not find \"StartY\" in config file. Quitting",v_message,fVerbose); 
-    return false;
-  }
-//  if(!m_variables.Get("StartZ",fStartZ)){
-//    Log("MrdLikelihoodTracker tool: Did not find \"StartZ\" in config file. Quitting",v_message,fVerbose); 
+//  if(!m_variables.Get("StartX_default",fStartX_default)){
+//    Log("MrdLikelihoodTracker tool: Did not find \"StartX_default\" in config file. Quitting",v_message,fVerbose); 
+//    return false;
+//  }
+//  if(!m_variables.Get("StartY_default",fStartY_default)){
+//    Log("MrdLikelihoodTracker tool: Did not find \"StartY_default\" in config file. Quitting",v_message,fVerbose); 
+//    return false;
+//  }
+////  if(!m_variables.Get("StartZ",fStartZ)){
+////    Log("MrdLikelihoodTracker tool: Did not find \"StartZ\" in config file. Quitting",v_message,fVerbose); 
+////    return false;
+////  }
+//
+//  
+//  if(!m_variables.Get("Theta_default",fTheta_default)){
+//    Log("MrdLikelihoodTracker tool: Did not find \"Theta_default\" in config file. Quitting",v_message,fVerbose); 
+//    return false;
+//  }  
+//  if(!m_variables.Get("Phi_default",fPhi_default)){
+//    Log("MrdLikelihoodTracker tool: Did not find \"Phi_default\" in config file. Quitting",v_message,fVerbose); 
 //    return false;
 //  }
 
-  
-  if(!m_variables.Get("Theta",fTheta)){
-    Log("MrdLikelihoodTracker tool: Did not find \"Theta\" in config file. Quitting",v_message,fVerbose); 
-    return false;
-  }  
-  if(!m_variables.Get("Phi",fPhi)){
-    Log("MrdLikelihoodTracker tool: Did not find \"Phi\" in config file. Quitting",v_message,fVerbose); 
-    return false;
-  }
-
 //  hist = new TH1D("hist", "hist", 200, 3., 5.);
 //  h2 = new TH2D("hist", "hist", nBinsX,0.,60., nBinsY,0.,359.);
-    h2_angle = new TH2D("", "", nBinsX,0.,60., nBinsY,0.,360.);
-    h2_space = new TH2D("", "", nBinsX,-1.5,1.5, nBinsY,-1.5,1.5);
+    h2_angle = new TH2D("", "", nBinsX,0.,90., nBinsY,0.,360.);
+    h2_space = new TH2D("", "", nBinsX,-2.0,2.0, nBinsY,-2.0,2.0);
     
 
   m_data->Stores["ANNIEEvent"]->Header->Get("AnnieGeometry",fGeom);
@@ -106,36 +94,46 @@ bool MrdLikelihoodTracker::Execute()
 {
   Log("MrdLikelihoodTracker tool: Executing.",v_message,fVerbose);
 
+  fMinimizer = NULL;
+  fFitStatus = 0;
+  fFitVals.clear();  
+//  fStartX = fStartX_default;
+//  fStartY = fStartY_default;
+//  fTheta = fTheta_default;
+//  fPhi = fPhi_default;
+  fHitMrdChankeys.clear();
+  fCoordsAtZ.clear();
+  fPaddleProbs.clear();
+  mrddigitchankeysthisevent.clear();
+  h2_angle->Clear();
+  h2_space->Clear();
+  
   if(!m_data->Stores.count("ANNIEEvent") ){ 
     Log("MrdLikelihoodTracker tool: No ANNIEEvent store!",v_error,fVerbose); 
     return false;
   }
 
-  int this_event;
   int get_ok = 0;
-  get_ok = m_data->Stores["ANNIEEvent"]->Get("MCEventNum",this_event);
+  get_ok = m_data->Stores["ANNIEEvent"]->Get("MCEventNum",fEventNumber);
   if(not get_ok){ Log("MrdLikelihoodTracker tool: Error retrieving MCEventNum, true from ANNIEEvent!",v_error,fVerbose); return false; }
 
-  if(this_event != 57) return true; 
-  std::cout << "this_event is " << this_event << "\n";
+//  if(fEventNumber < 55) return true; 
+//  std::cout << "fEventNumber is " << fEventNumber << "\n";
   
   std::vector<std::vector<int>> MrdTimeClusters;
   get_ok = m_data->CStore.Get("MrdTimeClusters",MrdTimeClusters);
   if (not get_ok) { Log("MrdLikelihoodTracker Tool: Error retrieving MrdTimeClusters map from CStore, did you run TimeClustering beforehand?",v_error,fVerbose); return false; }
 
   int nClust = MrdTimeClusters.size();
-  std::cout << "Number of MrdTimeClusters " << nClust << "\n";
-  if(nClust != 1) return false; // TODO maybe add a log message
-  std::cout << "Size of MrdTimeClusters[0] " << MrdTimeClusters[0].size() << "\n";
-
+//  std::cout << "Number of MrdTimeClusters " << nClust << "\n";
+  if(nClust != 1) return true; // TODO maybe add a log message
+//  std::cout << "Size of MrdTimeClusters[0] " << MrdTimeClusters[0].size() << "\n";
 
   //get_ok = m_data->CStore.Get("MrdDigitTimes",MrdDigitTimes);
 //  if (not get_ok) { Log("EventDisplay Tool: Error retrieving MrdDigitTimes map from CStore, did you run TimeClustering beforehand?",v_error,verbose); return false; }
   get_ok = m_data->CStore.Get("MrdDigitChankeys",mrddigitchankeysthisevent);
   if (not get_ok) { Log("EventDisplay Tool: Error retrieving MrdDigitChankeys, did you run TimeClustering beforehand",v_error,fVerbose); return false;}
-
-
-  std::cout << "FOO A \n";
+  
   for(int digit_value : MrdTimeClusters[0]){
 //    std::cout << digit_value << "\n";
     unsigned long chankey = mrddigitchankeysthisevent.at(digit_value);
@@ -147,29 +145,25 @@ bool MrdLikelihoodTracker::Execute()
 //    std::cout << chankey << "\n";
   }
 
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   bool fit = true;
   bool draw = true;
   if(fit){
-    std::cout << "FOO B \n";
-  //  fMinimizer = new TMinuitMinimizer(ROOT::Minuit::kMigrad, fNPars);
+
+    //  fMinimizer = new TMinuitMinimizer(ROOT::Minuit::kMigrad, fNPars);
   //  std::cout << fMinimizer << "\n";
     //fMinimizer = std::unique_ptr<ROOT::Math::Minimizer> ( ROOT::Math::Factory::CreateMinimizer( "Minuit2", "Migrad" ) );
     fMinimizer = ROOT::Math::Factory::CreateMinimizer( "Minuit", "Migrad" ) ;
   //  std::cout << fMinimizer << "\n";
-  
-    std::cout << "FOO C \n";
+    
     DefineFunc();
     fMinimizer->SetFunction(fFunc);
   
     fMinimizer->SetMaxFunctionCalls(10000);
-    std::cout << "FOO D \n";
     fMinimizer->SetMaxIterations(10000);
     fMinimizer->SetTolerance( 0.00000001 );
     fMinimizer->SetPrintLevel(1);
   
-      std::cout << "FOO E \n";
     fMinimizer->SetVariable( 0, "start_x", 0., 0.005);
     fMinimizer->SetVariableLimits( 0, -2., 2.); // TODO refine these limits
   
@@ -181,9 +175,12 @@ bool MrdLikelihoodTracker::Execute()
   
     fMinimizer->SetVariable( 3, "phi", 10., 0.5);
     fMinimizer->SetVariableLimits( 3, -360., 720.); 
-    
+
+
+    std::cout << "fFitVals.size(): " << fFitVals.size() << "\n";
     DoFit();
-  
+    std::cout << "fFitVals.size(): " << fFitVals.size() << "\n";
+    
     delete fMinimizer;
     fMinimizer = NULL;
   //  fMinimizer->Clear();
@@ -193,20 +190,32 @@ bool MrdLikelihoodTracker::Execute()
 //    std::cout << fTheta << "\n";
 //    std::cout << fPhi << "\n";
 
-    std::cout << fFitVals[0] << "\n";
-    std::cout << fFitVals[1] << "\n";
-    std::cout << fFitVals[2] << "\n";
-    std::cout << fFitVals[3] << "\n";
-  }
+    if(!fFitStatus) return true;
+    
+    if(fFitVals.size() == fNPars){
+      std::cout << "~~~ Event num " << fEventNumber << " ~~~ \n";
+      std::cout << fFitVals.at(0) << "\n";
+      std::cout << fFitVals.at(1) << "\n";
+      std::cout << fFitVals.at(2) << "\n";
+      std::cout << fFitVals.at(3) << "\n";
+      
+//    std::cout << "Putting fit params in \n";
+      m_data->Stores["ANNIEEvent"]->Set("MrdLikelihoodFitVals",fFitVals);
+    }
+    else{
+      Log("MrdLikelihoodTracker tool: Number of fit params greater than number of model params. Something is wrong here",v_error,fVerbose);
+      return false;
+    }
 
+  }//end if(fit)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   if(draw){
 
     // draw angle
-    fStartX = fFitVals[0];
-    fStartY = fFitVals[1];
-    fTheta = fFitVals[2];
-    fPhi = fFitVals[3];
+    fStartX = fFitVals.at(0);
+    fStartY = fFitVals.at(1);
+    fTheta = fFitVals.at(2);
+    fPhi = fFitVals.at(3);
     for(int iBinX=1; iBinX<=nBinsX; iBinX++){
       double binX = h2_angle->GetXaxis()->GetBinCenter(iBinX);
       fTheta = binX;
@@ -237,10 +246,10 @@ bool MrdLikelihoodTracker::Execute()
     }//end loop over x-bins    
 
     // draw space
-    fStartX = fFitVals[0];
-    fStartY = fFitVals[1];
-    fTheta = fFitVals[2];
-    fPhi = fFitVals[3];
+    fStartX = fFitVals.at(0);
+    fStartY = fFitVals.at(1);
+    fTheta = fFitVals.at(2);
+    fPhi = fFitVals.at(3);
     for(int iBinX=1; iBinX<=nBinsX; iBinX++){
       double binX = h2_space->GetXaxis()->GetBinCenter(iBinX);
       fStartX = binX;
@@ -269,7 +278,7 @@ bool MrdLikelihoodTracker::Execute()
         h2_space->SetBinContent(iBinX, iBinY, val);
       }//end loop over y-bins
     }//end loop over x-bins    
-
+    DrawIt();
 
   }//end if(draw)
   
@@ -332,7 +341,7 @@ void MrdLikelihoodTracker::DoFit()
         if(val < 0) val = 360. + val;
         else if (val > 360) val -= 360.;
       }
-      fFitVals[i] = val;
+      fFitVals.push_back(val);
     }// end for(fNPars)
   }// end if(fFitStatus)
 }
@@ -418,14 +427,11 @@ void MrdLikelihoodTracker::FillPaddleProbs()
   
 }
 
+
 //..................................................................................
 
-bool MrdLikelihoodTracker::Finalise()
+void MrdLikelihoodTracker::DrawIt()
 {
-
-//  std::cout << "Midpoints \n";
-//  for(double m : fZ_midpoints) std::cout << m << "\n";
-
   TCanvas* c = new TCanvas();
 //  c->SetLogz(true);
   c->SetRightMargin(0.13);
@@ -434,7 +440,8 @@ bool MrdLikelihoodTracker::Finalise()
 //  h2->GetZaxis()->SetRangeUser(2.03e-24, 2.05e-24);
 //    h2->GetZaxis()->SetRangeUser(1e-25, 2.4e-24);
   h2_angle->SetStats(0);
-  h2_angle->GetZaxis()->SetRangeUser(50, 500);
+//  h2_angle->GetZaxis()->SetRangeUser(50, 500);
+  h2_angle->GetZaxis()->SetRangeUser(0, 350);
   h2_angle->GetZaxis()->SetTitle("-2ln(L)");
   h2_angle->GetXaxis()->SetTitle("#theta (degrees)");
   h2_angle->GetYaxis()->SetTitle("#phi (degrees)");
@@ -442,15 +449,16 @@ bool MrdLikelihoodTracker::Finalise()
   h2_angle->GetYaxis()->CenterTitle(true);
   h2_angle->GetXaxis()->CenterTitle(true);
   h2_angle->SetTitle("Angular likelihood surface at best fit spatial points");
-  TMarker* m_angle = new TMarker(27.25,31.95,29);  
+  TMarker* m_angle = new TMarker(fFitVals.at(2), fFitVals.at(3), 29);  
   m_angle->SetMarkerSize(3);
   m_angle->SetMarkerColor(kRed);
   h2_angle->Draw("colz");
   m_angle->Draw("SAME");
-  c->SaveAs("angle.png");
+  c->SaveAs( ("./MrdPaddlePlots/surface_"+std::to_string(fEventNumber)+"_angle.png").c_str() );
 
   h2_space->SetStats(0);
-  h2_space->GetZaxis()->SetRangeUser(50, 500);
+//  h2_space->GetZaxis()->SetRangeUser(50, 500);
+  h2_space->GetZaxis()->SetRangeUser(0, 350);
   h2_space->GetZaxis()->SetTitle("-2ln(L)");
   h2_space->GetXaxis()->SetTitle("Start X (m)");
   h2_space->GetYaxis()->SetTitle("Start Y (m)");
@@ -458,21 +466,32 @@ bool MrdLikelihoodTracker::Finalise()
   h2_space->GetYaxis()->CenterTitle(true);
   h2_space->GetXaxis()->CenterTitle(true);
   h2_space->SetTitle("Spatial likelihood surface at best fit angle points");
-  TMarker* m_space = new TMarker(-0.65,-0.46,29);  
+  TMarker* m_space = new TMarker(fFitVals.at(0), fFitVals.at(1), 29);  
   m_space->SetMarkerSize(3);
   m_space->SetMarkerColor(kRed);
   h2_space->Draw("colz");
   m_space->Draw("SAME");
-  c->SaveAs("space.png");
+  c->SaveAs( ("./MrdPaddlePlots/surface_"+std::to_string(fEventNumber)+"_space.png").c_str() );
+  
+  delete c;
+  c = nullptr;
+
+}
+
+//..................................................................................
+
+bool MrdLikelihoodTracker::Finalise()
+{
+
+//  std::cout << "Midpoints \n";
+//  for(double m : fZ_midpoints) std::cout << m << "\n";
+
 
   delete h2_angle;
   h2_angle = nullptr;
 
   delete h2_space;
   h2_space = nullptr;
-  
-  delete c;
-  c = nullptr;
   
   return true;
 }
