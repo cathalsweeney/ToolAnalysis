@@ -41,7 +41,7 @@ class MrdLikelihoodTracker: public Tool {
  private:
 
   void FillPaddleProbs(); ///< Fill fPaddleProbs
-  void FillCoordsAtZ(); ///< Fill fCoordsAtZ
+  void FillCoordsAtLayer(); ///< Fill fCoordsAtLayer
   void DoFit();
   void DefineFunc();
   double Likelihood(const double *parVals);
@@ -87,14 +87,32 @@ class MrdLikelihoodTracker: public Tool {
 //  TH1D* hist = nullptr;
 
   // TODO these values should not be hardcoded!!
-  std::vector<double> fZ_midpoints=
-  { 3.3638, 3.4884, 3.613, 3.7376,
-    3.8622, 3.9833, 4.1044, 4.2255,
-    4.3466, 4.4677, 4.5888}; ///< z-coordinates of the midpoints of each plane
+//  std::vector<double> fZ_midpoints=
+//  { 3.3638, 3.4884, 3.613, 3.7376,
+//    3.8622, 3.9833, 4.1044, 4.2255,
+//    4.3466, 4.4677, 4.5888}; ///< z-coordinates of the midpoints of each plane
 
+
+  // TODO these values should not be hardcoded!!
+  std::map<int, double> fZ_midpoints =
+  {
+    {2, 3.3638},
+    {3, 3.4884},
+    {4, 3.613},
+    {5, 3.7376},
+    {6, 3.8622},
+    {7, 3.9833},
+    {8, 4.1044},
+    {9, 4.2255},
+    {10, 4.3466},
+    {11, 4.4677},
+    {12, 4.5888},
+  };  ///< Map from layer number to z-coordinate of middle of plane
+    
+  
   double fZ_start = 3.3608; ///< z-coordinate of the start of the MRD
 
-  std::map<double, std::pair<double,double> > fCoordsAtZ; ///< (x,y) coords of track at z midpoint of each plane given current track params; fCoordsAtZ[z_val] = {x,y} 
+  std::map<int, std::pair<double,double> > fCoordsAtLayer; ///< (x,y) coords of track at z midpoint of each layer given current track params; fCoordsAtLayer[iLayer] = {x_track,y_track} 
   std::map<int, double> fPaddleProbs; ///< Probability of this paddle being hit given current track params; fPaddleProbs[chankey] = prob
 
   std::vector<unsigned long> mrddigitchankeysthisevent;  //from TimeClustering tool
@@ -104,7 +122,8 @@ class MrdLikelihoodTracker: public Tool {
   int nBinsY = 100;
 
   std::vector<int> fAllMrdChankeys;
-  
+
+  int fNLayer = 11;
 };
 
 
