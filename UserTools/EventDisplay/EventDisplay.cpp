@@ -596,6 +596,9 @@ bool EventDisplay::Execute(){
     get_ok = m_data->Stores.at("RecoEvent")->Get("EventCutStatus",EventCutStatus);
     if(not get_ok){ Log("EventDisplay Tool: Error retrieving EventCutStatus,true from RecoEvent!",v_error,verbose); return false; }
   }
+  else{
+    get_ok = m_data->Stores.at("ANNIEEvent")->Get("EventCutStatus",EventCutStatus); 
+  }
 
   //---------------------------------------------------------------
   //------------- Get Clustered Event information -----------------
