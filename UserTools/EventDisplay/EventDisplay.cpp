@@ -1348,42 +1348,9 @@ bool EventDisplay::Execute(){
         for(auto&& anmrdpmt : (*TDCData)){
           unsigned long chankey = anmrdpmt.first;
           Detector* thedetector = geom->ChannelToDetector(chankey);
-	  unsigned long detkey = thedetector->GetDetectorID();
-          if(thedetector->GetDetectorElement()!="MRD") facc_hit=true; // this is a veto hit, not an MRD hit.
-          else {
-	    mrd_hit = true;
-	    double mrdtimes=0.;
-	    int mrddigits=0;
-            for(auto&& hitsonthismrdpmt : anmrdpmt.second){
-              mrdtimes+=hitsonthismrdpmt.GetTime();
-	      mrddigits++;
-	    }
-	    if (mrddigits > 0) mrdtimes/=mrddigits;
-            hitmrd_detkeys.push_back(detkey);
-            if (mrdtimes < min_time_mrd) min_time_mrd = mrdtimes;
-	    if (mrdtimes > maximum_time_mrd) maximum_time_mrd = mrdtimes;
-	    mrddigittimesthisevent[detkey] = mrdtimes;
-          }
-        }
-      }
-    }
-  } else {
-    Log("EventDisplay tool: Looping over MRD data",v_message,verbose);
-    // Loop over data file
-    if (get_mrd){
-    if(!TDCData_Data){
-      Log("EventDisplay tool: No TDC data to plot in Event Display!",v_message,verbose);
-    } else {
-      if(TDCData_Data->size()==0){
-        Log("EventDisplay tool: No TDC hits to plot in Event Display!",v_message,verbose);
-      } else if (!draw_cluster_mrd) {
-          Log("EventDisplay tool: Looping over FACC/MRD hits...Size of TDCData hits (data): "+std::to_string(TDCData_Data->size()),v_message,verbose);
-        for(auto&& anmrdpmt : (*TDCData_Data)){
-          unsigned long chankey = anmrdpmt.first;
-          Detector* thedetector = geom->ChannelToDetector(chankey);
           unsigned long detkey = thedetector->GetDetectorID();
           if(thedetector->GetDetectorElement()!="MRD") facc_hit=true; // this is a veto hit, not an MRD hit.
-          else {
+          else{
             mrd_hit = true;
             double mrdtimes=0.;
             int mrddigits=0;
@@ -1398,73 +1365,106 @@ bool EventDisplay::Execute(){
             mrddigittimesthisevent[detkey] = mrdtimes;
           }
         }
-      } else {
-        for(unsigned int thiscluster=0; thiscluster<MrdTimeClusters.size(); thiscluster++){
-
-        std::vector<int> single_mrdcluster = MrdTimeClusters.at(thiscluster);
-        int numdigits = single_mrdcluster.size();
-
-        for(int thisdigit=0;thisdigit<numdigits;thisdigit++){
-
-          int digit_value = single_mrdcluster.at(thisdigit);
-          unsigned long chankey = mrddigitchankeysthisevent.at(digit_value);
-	  Detector *thedetector = geom->ChannelToDetector(chankey);
-	  unsigned long detkey = thedetector->GetDetectorID();
-	  if (thedetector->GetDetectorElement()!="MRD") facc_hit = true;
-	  else {
-            mrd_hit = true;
-            double mrdtimes=MrdDigitTimes.at(digit_value);
-	    hitmrd_detkeys.push_back(detkey);
-	    if (mrdtimes < min_time_mrd) min_time_mrd = mrdtimes;
-            if (mrdtimes > maximum_time_mrd) maximum_time_mrd = mrdtimes;
-            mrddigittimesthisevent[detkey] = mrdtimes;
-         }
-       }
       }
-      //Check also in the cluster plot case whether there was a FMV hit
-      if (!isData){
-        if (TDCData){
-	for(auto&& anmrdpmt : (*TDCData)){
-          unsigned long chankey = anmrdpmt.first;
-          Detector* thedetector = geom->ChannelToDetector(chankey);
-          unsigned long detkey = thedetector->GetDetectorID();
-          if(thedetector->GetDetectorElement()!="MRD") {
-          std::vector<MCHit> fmv_hits = anmrdpmt.second;
-          for (int i_hit=0; i_hit < fmv_hits.size(); i_hit++){
-            MCHit fmv_hit = fmv_hits.at(i_hit);
-            double time_diff = fmv_hit.GetTime()-cluster_time;
-            if (time_diff > -50 && time_diff < 50){
-              facc_hit = true;
-           }
-          }
-         }
-        }
-       }
-      } else {
-        if (TDCData_Data){
-        for(auto&& anmrdpmt : (*TDCData_Data)){
-          unsigned long chankey = anmrdpmt.first;
-          Detector* thedetector = geom->ChannelToDetector(chankey);
-          unsigned long detkey = thedetector->GetDetectorID();
-          if(thedetector->GetDetectorElement()!="MRD"){
-          std::vector<Hit> fmv_hits = anmrdpmt.second;
-          for (int i_hit=0; i_hit < fmv_hits.size(); i_hit++){
-            Hit fmv_hit = fmv_hits.at(i_hit);
-            double time_diff = fmv_hit.GetTime()-cluster_time;
-            if (time_diff > 740 && time_diff < 840){
-              facc_hit = true;
-           }
-          }
-         } 
-        }
-       }
-      }
-     }
     }
-   }
+  } else {
+    Log("EventDisplay tool: Looping over MRD data",v_message,verbose);
+    // Loop over data file
+    if (get_mrd){
+      if(!TDCData_Data){
+        Log("EventDisplay tool: No TDC data to plot in Event Display!",v_message,verbose);
+      } else {
+        if(TDCData_Data->size()==0){
+          Log("EventDisplay tool: No TDC hits to plot in Event Display!",v_message,verbose);
+        } else if (!draw_cluster_mrd) {
+          Log("EventDisplay tool: Looping over FACC/MRD hits...Size of TDCData hits (data): "+std::to_string(TDCData_Data->size()),v_message,verbose);
+          for(auto&& anmrdpmt : (*TDCData_Data)){
+            unsigned long chankey = anmrdpmt.first;
+            Detector* thedetector = geom->ChannelToDetector(chankey);
+            unsigned long detkey = thedetector->GetDetectorID();
+            if(thedetector->GetDetectorElement()!="MRD") facc_hit=true; // this is a veto hit, not an MRD hit.
+            else {
+              mrd_hit = true;
+              double mrdtimes=0.;
+              int mrddigits=0;
+              for(auto&& hitsonthismrdpmt : anmrdpmt.second){
+                mrdtimes+=hitsonthismrdpmt.GetTime();
+                mrddigits++;
+              }
+              if (mrddigits > 0) mrdtimes/=mrddigits;
+              hitmrd_detkeys.push_back(detkey);
+              if (mrdtimes < min_time_mrd) min_time_mrd = mrdtimes;
+              if (mrdtimes > maximum_time_mrd) maximum_time_mrd = mrdtimes;
+              mrddigittimesthisevent[detkey] = mrdtimes;
+            }
+          }
+        } else {
+          for(unsigned int thiscluster=0; thiscluster<MrdTimeClusters.size(); thiscluster++){
+            
+            std::vector<int> single_mrdcluster = MrdTimeClusters.at(thiscluster);
+            int numdigits = single_mrdcluster.size();
+            
+            for(int thisdigit=0;thisdigit<numdigits;thisdigit++){
+              
+              int digit_value = single_mrdcluster.at(thisdigit);
+              unsigned long chankey = mrddigitchankeysthisevent.at(digit_value);
+              Detector *thedetector = geom->ChannelToDetector(chankey);
+              unsigned long detkey = thedetector->GetDetectorID();
+              if (thedetector->GetDetectorElement()!="MRD") facc_hit = true;
+              else {
+                mrd_hit = true;
+                double mrdtimes=MrdDigitTimes.at(digit_value);
+                hitmrd_detkeys.push_back(detkey);
+                if (mrdtimes < min_time_mrd) min_time_mrd = mrdtimes;
+                if (mrdtimes > maximum_time_mrd) maximum_time_mrd = mrdtimes;
+                mrddigittimesthisevent[detkey] = mrdtimes;
+              }
+            }
+          }
+          //Check also in the cluster plot case whether there was a FMV hit
+          if (!isData){
+            if (TDCData){
+              for(auto&& anmrdpmt : (*TDCData)){
+                unsigned long chankey = anmrdpmt.first;
+                Detector* thedetector = geom->ChannelToDetector(chankey);
+                unsigned long detkey = thedetector->GetDetectorID();
+                if(thedetector->GetDetectorElement()!="MRD") {
+                  std::vector<MCHit> fmv_hits = anmrdpmt.second;
+                  for (int i_hit=0; i_hit < fmv_hits.size(); i_hit++){
+                    MCHit fmv_hit = fmv_hits.at(i_hit);
+                    double time_diff = fmv_hit.GetTime()-cluster_time;
+                    if (time_diff > -50 && time_diff < 50){
+                      facc_hit = true;
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            if (TDCData_Data){
+              for(auto&& anmrdpmt : (*TDCData_Data)){
+                unsigned long chankey = anmrdpmt.first;
+                Detector* thedetector = geom->ChannelToDetector(chankey);
+                unsigned long detkey = thedetector->GetDetectorID();
+                if(thedetector->GetDetectorElement()!="MRD"){
+                  std::vector<Hit> fmv_hits = anmrdpmt.second;
+                  for (int i_hit=0; i_hit < fmv_hits.size(); i_hit++){
+                    Hit fmv_hit = fmv_hits.at(i_hit);
+                    double time_diff = fmv_hit.GetTime()-cluster_time;
+                    if (time_diff > 740 && time_diff < 840){
+                      facc_hit = true;
+                    }
+                  }
+                } 
+              }
+            }
+          }
+        }
+      }
+    }
   }
-
-
+  
+  
   //Calculate mean MRD cluster time
   double mean_mrd_time = 0;
   for (unsigned int i = 0; i< hitmrd_detkeys.size(); i++){
