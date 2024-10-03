@@ -1340,17 +1340,19 @@ bool EventDisplay::Execute(){
   if (!isData){
     if(!TDCData){
       Log("EventDisplay tool: No TDC data to plot in Event Display!",v_message,verbose);
-    } else {
+    }
+    else {
       if(TDCData->size()==0){
         Log("EventDisplay tool: No TDC hits to plot in Event Display!",v_message,verbose);
-      } else {
+      }
+      else {
         Log("EventDisplay tool: Looping over FACC/MRD hits...Size of TDCData hits (MC): "+std::to_string(TDCData->size()),v_message,verbose);
         for(auto&& anmrdpmt : (*TDCData)){
           unsigned long chankey = anmrdpmt.first;
           Detector* thedetector = geom->ChannelToDetector(chankey);
           unsigned long detkey = thedetector->GetDetectorID();
           if(thedetector->GetDetectorElement()!="MRD") facc_hit=true; // this is a veto hit, not an MRD hit.
-          else{
+          else {
             mrd_hit = true;
             double mrdtimes=0.;
             int mrddigits=0;
@@ -1363,20 +1365,23 @@ bool EventDisplay::Execute(){
             if (mrdtimes < min_time_mrd) min_time_mrd = mrdtimes;
             if (mrdtimes > maximum_time_mrd) maximum_time_mrd = mrdtimes;
             mrddigittimesthisevent[detkey] = mrdtimes;
-          }
-        }
-      }
-    }
-  } else {
+          }// end else {detector == MRD}
+        }// end for(anmrdpmt)
+      }//end else  {(TDCData !=0)}
+    }// end else {TDCData exists}
+  }// end if(!isData)
+  else {  //start {isData}
     Log("EventDisplay tool: Looping over MRD data",v_message,verbose);
     // Loop over data file
     if (get_mrd){
       if(!TDCData_Data){
         Log("EventDisplay tool: No TDC data to plot in Event Display!",v_message,verbose);
-      } else {
+      }
+      else {
         if(TDCData_Data->size()==0){
           Log("EventDisplay tool: No TDC hits to plot in Event Display!",v_message,verbose);
-        } else if (!draw_cluster_mrd) {
+        }
+        else if (!draw_cluster_mrd) {
           Log("EventDisplay tool: Looping over FACC/MRD hits...Size of TDCData hits (data): "+std::to_string(TDCData_Data->size()),v_message,verbose);
           for(auto&& anmrdpmt : (*TDCData_Data)){
             unsigned long chankey = anmrdpmt.first;
@@ -1398,7 +1403,8 @@ bool EventDisplay::Execute(){
               mrddigittimesthisevent[detkey] = mrdtimes;
             }
           }
-        } else {
+        }
+        else { // {draw_cluster_mrd}}
           for(unsigned int thiscluster=0; thiscluster<MrdTimeClusters.size(); thiscluster++){
             
             std::vector<int> single_mrdcluster = MrdTimeClusters.at(thiscluster);
@@ -1420,9 +1426,9 @@ bool EventDisplay::Execute(){
                 mrddigittimesthisevent[detkey] = mrdtimes;
               }
             }
-          }
+          }// end loop over MrdTimeClusters
           //Check also in the cluster plot case whether there was a FMV hit
-          if (!isData){
+          if (!isData){ // TODO makes no sense to check this in a block where isData==true
             if (TDCData){
               for(auto&& anmrdpmt : (*TDCData)){
                 unsigned long chankey = anmrdpmt.first;
@@ -1440,7 +1446,8 @@ bool EventDisplay::Execute(){
                 }
               }
             }
-          } else {
+          }
+          else {
             if (TDCData_Data){
               for(auto&& anmrdpmt : (*TDCData_Data)){
                 unsigned long chankey = anmrdpmt.first;
@@ -1459,9 +1466,9 @@ bool EventDisplay::Execute(){
               }
             }
           }
-        }
-      }
-    }
+        }// end else {draw_cluster_mrd}
+      }// end else {TDCData_Data exists}
+    }//end if(get_mrd)
   }
   
   
