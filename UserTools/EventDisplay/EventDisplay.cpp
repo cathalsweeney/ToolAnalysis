@@ -556,7 +556,7 @@ bool EventDisplay::Execute(){
     //EventTime currently not implemented in data
     get_ok = m_data->Stores["ANNIEEvent"]->Get("EventTime",EventTime);
     if(not get_ok){ Log("EventDisplay tool: Error retrieving EventTime, true from ANNIEEvent!",v_error,verbose); return false;}
-    
+
     //Currently TriggerData is not available for data, will be inserted in the future
     //TODO: Load the same information for data once the EventBuilder is fully operational
     get_ok = m_data->Stores["ANNIEEvent"]->Get("BeamStatus",BeamStatus);
@@ -1345,7 +1345,7 @@ bool EventDisplay::Execute(){
       if(TDCData->size()==0){
         Log("EventDisplay tool: No TDC hits to plot in Event Display!",v_message,verbose);
       }
-      else {
+      else if(!draw_cluster_mrd){
         Log("EventDisplay tool: Looping over FACC/MRD hits...Size of TDCData hits (MC): "+std::to_string(TDCData->size()),v_message,verbose);
         for(auto&& anmrdpmt : (*TDCData)){
           unsigned long chankey = anmrdpmt.first;
@@ -1367,7 +1367,31 @@ bool EventDisplay::Execute(){
             mrddigittimesthisevent[detkey] = mrdtimes;
           }// end else {detector == MRD}
         }// end for(anmrdpmt)
-      }//end else  {(TDCData !=0)}
+      }//end else if(!draw_cluster_mrd)
+      else { // {draw_cluster_mrd}}
+        for(unsigned int thiscluster=0; thiscluster<MrdTimeClusters.size(); thiscluster++){
+          
+          std::vector<int> single_mrdcluster = MrdTimeClusters.at(thiscluster);
+          int numdigits = single_mrdcluster.size();
+          
+          for(int thisdigit=0;thisdigit<numdigits;thisdigit++){
+            
+            int digit_value = single_mrdcluster.at(thisdigit);
+            unsigned long chankey = mrddigitchankeysthisevent.at(digit_value);
+            Detector *thedetector = geom->ChannelToDetector(chankey);
+            unsigned long detkey = thedetector->GetDetectorID();
+            if (thedetector->GetDetectorElement()!="MRD") facc_hit = true;
+            else {
+              mrd_hit = true;
+              double mrdtimes=MrdDigitTimes.at(digit_value);
+              hitmrd_detkeys.push_back(detkey);
+              if (mrdtimes < min_time_mrd) min_time_mrd = mrdtimes;
+              if (mrdtimes > maximum_time_mrd) maximum_time_mrd = mrdtimes;
+                mrddigittimesthisevent[detkey] = mrdtimes;
+            }
+          }
+        }// end loop over MrdTimeClusters
+      }// end else {draw_cluster_mrd}
     }// end else {TDCData exists}
   }// end if(!isData)
   else {  //start {isData}
