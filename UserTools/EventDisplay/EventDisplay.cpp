@@ -1616,7 +1616,7 @@ bool EventDisplay::Execute(){
 
 bool EventDisplay::Finalise(){
 
-  root_file->cd();
+  if (output_format == "root") root_file->cd();
 
   //-----------------------------------------------------------------
   //---------------- Delete remaining objects -----------------------
