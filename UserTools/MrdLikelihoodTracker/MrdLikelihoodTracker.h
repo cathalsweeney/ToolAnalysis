@@ -10,13 +10,16 @@
 #include "TCanvas.h"
 #include "TH1.h"
 #include "TH2.h"
+#include "TFile.h"
+#include "TTree.h"
+#include "TROOT.h"
 
 #include "Math/Minimizer.h"
 #include "Math/Factory.h"
 #include "Math/Functor.h"
 //#include "Minuit2/Minuit2Minimizer.h"
 //#include "TMinuitMinimizer.h"
-
+#include "Position.h"
 
 /**
  * \class MrdLikelihoodTracker
@@ -46,6 +49,7 @@ class MrdLikelihoodTracker: public Tool {
   void DefineFunc();
   double Likelihood(const double *parVals);
   void DrawIt(); ///< Draw the likelihood surfaces
+  void FillTree();
   
   static constexpr int fNPars = 4;
 //  std::unique_ptr<ROOT::Math::Minimizer> fMinimizer = NULL;
@@ -58,7 +62,7 @@ class MrdLikelihoodTracker: public Tool {
 
   int fFitStatus = 0;
 //  double fFitVals[fNPars];
-  std::vector<double> fFitVals;
+  std::vector<double> fFitVals = {0., 0., 0., 0., 0.};
   
     /// \brief verbosity levels: if 'verbosity' < this level, the message type will be logged.
   int fVerbose;
@@ -78,7 +82,7 @@ class MrdLikelihoodTracker: public Tool {
   double fStartY = 0.;
   double fTheta = 0.;
   double fPhi = 0.;
-
+  int fMaxLayer = 0; ///< Fit param. How many layers did muon penetrate
   
   std::vector<int> fHitMrdChankeys;
   
@@ -109,9 +113,11 @@ class MrdLikelihoodTracker: public Tool {
     {12, 4.5888},
   };  ///< Map from layer number to z-coordinate of middle of plane
     
-  
-  double fZ_start = 3.3608; ///< z-coordinate of the start of the MRD
 
+  // TODO wrong value, get from geometry class
+//  double fZ_start = 3.3608; ///< z-coordinate of the start of the MRD
+  double fZ_start = 3.255; ///< z-coordinate of the start of the MRD
+  
   std::map<int, std::pair<double,double> > fCoordsAtLayer; ///< (x,y) coords of track at z midpoint of each layer given current track params; fCoordsAtLayer[iLayer] = {x_track,y_track} 
   std::map<int, double> fPaddleProbs; ///< Probability of this paddle being hit given current track params; fPaddleProbs[chankey] = prob
 
@@ -123,7 +129,25 @@ class MrdLikelihoodTracker: public Tool {
 
   std::vector<int> fAllMrdChankeys;
 
-  int fNLayer = 11;
+  int fNLayer = 11; // TODO don't hardcode  
+
+//	std::vector<MCParticle>* MCParticles = nullptr;
+  Position fTruePos;
+  double fTrueX;
+  double fTrueY;
+  double fEntryZ;
+  double fTrueTheta;
+  double fTruePhi;
+  
+  double fRecoLen;
+  double fTrueLen;
+  
+  std::vector<double> MrdDigitTimes;
+  double fMinDigitTime = 999.;
+  double fMaxDigitTime = -1.;
+
+  TFile* fOutFile = nullptr;
+  TTree* fTree = nullptr;
 };
 
 
